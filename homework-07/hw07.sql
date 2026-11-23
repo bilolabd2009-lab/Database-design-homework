@@ -141,17 +141,32 @@ ORDER BY e.employee_id;
 -- с каждой из 4 строк departments без условия: 5 × 4 = 20.
 
 -- =====================================================================
--- Проектный шаг (проект кофейни «Зерно 7»)
+-- Проектный шаг (проект «Платформа объявлений», тема №7)
 -- =====================================================================
--- Полезный запрос: состав заказа с названиями блюд и ценами.
--- Связывает order_items и products по order_items.product_id = products.product_id
--- (и orders по order_items.order_id = orders.order_id для даты заказа).
--- Результат: номер заказа, дата, название позиции, количество, цена и сумма строки.
--- Через LEFT JOIN от products можно найти позиции меню, которые ни разу не заказывали.
+-- Полезный запрос: лента активных объявлений для страницы категории —
+-- заголовок, цена, категория и её родитель, автор и число откликов.
+-- Связывает таблицы:
+--   ads → categories  по ads.category_id   = categories.category_id   (INNER: категория обязательна);
+--   categories → categories (SELF JOIN) по c.parent_id = p.category_id (LEFT: у корневой родителя нет);
+--   ads → users       по ads.author_id     = users.user_id            (INNER: автор обязателен);
+--   ads → responses   по responses.ad_id   = ads.ad_id                (LEFT: объявление без откликов
+--                     тоже должно попасть в ленту, с числом откликов 0 — требование П3 этапа 1).
 --
--- SELECT o.order_id, o.created_at, p.product_name,
---        oi.quantity, oi.unit_price, oi.quantity * oi.unit_price AS line_total
--- FROM orders AS o
--- INNER JOIN order_items AS oi ON oi.order_id = o.order_id
--- INNER JOIN products   AS p  ON p.product_id = oi.product_id
--- ORDER BY o.order_id, p.product_name;
+-- SELECT a.ad_id,
+--        a.title,
+--        a.price,
+--        p.name               AS parent_category,
+--        c.name               AS category,
+--        u.name               AS author,
+--        count(r.response_id) AS responses_count
+-- FROM ads AS a
+-- INNER JOIN categories AS c ON c.category_id = a.category_id
+-- LEFT  JOIN categories AS p ON p.category_id = c.parent_id
+-- INNER JOIN users      AS u ON u.user_id     = a.author_id
+-- LEFT  JOIN responses  AS r ON r.ad_id       = a.ad_id
+-- WHERE a.status = 'активно'
+-- GROUP BY a.ad_id, a.title, a.price, p.name, c.name, u.name
+-- ORDER BY a.published_at DESC;
+--
+-- count(r.response_id), а не count(*): у объявления без откликов LEFT JOIN
+-- даёт одну строку с NULL в r.response_id, и count(*) ошибочно насчитал бы 1.
